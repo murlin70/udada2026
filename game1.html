@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<title>경주 왕경 탐험 — 문화유산 탐사대</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@700&family=Gowun+Dodum&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0f1418;--panel:#18202a;--line:#2e3a46;--ink:#eef3f7;--dim:#9fb0bf;
+  --gold:#e5b455;--jade:#5bb8a4;--clay:#d1685a;--ok:#63c08a}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;-webkit-user-select:none;user-select:none}
+html,body{margin:0;height:100%;overflow:hidden;background:var(--bg);color:var(--ink);
+  font-family:'Gowun Dodum','Apple SD Gothic Neo',system-ui,sans-serif;touch-action:none}
+h1,h2,h3,.serif{font-family:'Gowun Batang',serif;margin:0}
+#stage{position:fixed;inset:0;display:grid;place-items:center}
+canvas{display:block;image-rendering:auto;max-width:100%;max-height:100%;
+  border-radius:10px;box-shadow:0 10px 40px rgba(0,0,0,.5)}
+/* --- 터치 컨트롤 --- */
+#pad{position:fixed;inset:auto 0 0 0;padding:0 16px 22px;display:none;
+  justify-content:space-between;pointer-events:none;z-index:20}
+#pad.on{display:flex}
+.pbtn{pointer-events:auto;width:72px;height:72px;border-radius:50%;border:2px solid rgba(229,180,85,.55);
+  background:rgba(24,32,42,.55);backdrop-filter:blur(4px);color:var(--gold);font-size:26px;
+  display:grid;place-items:center;font-family:inherit}
+.pbtn:active{background:rgba(229,180,85,.28)}
+.grp{display:flex;gap:12px;pointer-events:none}
+/* --- 오버레이 --- */
+.ov{position:fixed;inset:0;z-index:30;display:grid;place-items:center;padding:18px;
+  background:rgba(8,12,16,.86);backdrop-filter:blur(5px);animation:f .3s both}
+@keyframes f{from{opacity:0}to{opacity:1}}
+.box{width:100%;max-width:470px;background:var(--panel);border:1px solid var(--line);
+  border-radius:18px;padding:20px;text-align:center;animation:u .36s cubic-bezier(.2,.9,.25,1) both;
+  max-height:92vh;overflow:auto}
+@keyframes u{from{opacity:0;transform:translateY(18px) scale(.97)}to{opacity:1;transform:none}}
+.btn{display:block;width:100%;padding:13px;border-radius:12px;border:1px solid var(--line);
+  background:#131a22;color:var(--ink);font:inherit;font-size:15.4px;margin-bottom:9px;cursor:pointer}
+.btn.pri{background:linear-gradient(180deg,var(--gold),#c1913b);color:#17120a;border-color:var(--gold);font-weight:700}
+.btn.ok{border-color:var(--ok);background:rgba(99,192,138,.18)}
+.btn.no{border-color:var(--clay);background:rgba(209,104,90,.16);animation:sh .4s}
+@keyframes sh{0%,100%{transform:translateX(0)}25%{transform:translateX(-7px)}75%{transform:translateX(6px)}}
+.tag{font-size:11.5px;letter-spacing:.24em;color:var(--gold);margin-bottom:6px}
+.dim{color:var(--dim);font-size:14px}
+.small{font-size:12.4px;color:var(--dim)}
+.hr{height:1px;background:var(--line);margin:14px 0}
+.kv{display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--line);font-size:14.4px;text-align:left}
+.relic{display:flex;gap:11px;align-items:flex-start;text-align:left;border:1px solid var(--line);
+  border-radius:12px;padding:11px;margin-bottom:8px;background:#131a22}
+.relic b{color:var(--gold);font-family:'Gowun Batang',serif}
+.relic p{margin:3px 0 0;font-size:12.8px;color:var(--dim);line-height:1.5}
+.relic .ic{flex:0 0 42px}
+.grid{display:grid;grid-template-columns:repeat(5,1fr);gap:7px;margin:10px 0}
+.slot{aspect-ratio:1;border:1px solid var(--line);border-radius:10px;display:grid;place-items:center;
+  background:#131a22;opacity:.3}
+.slot.on{opacity:1;border-color:var(--gold);background:rgba(229,180,85,.14)}
+.slot svg{width:70%;height:70%}
+@media (prefers-reduced-motion:reduce){*{animation-duration:.01ms!important}}
+</style>
+</head>
+<body>
+<div id="stage"><canvas id="cv" width="960" height="540"></canvas></div>
+<div id="pad">
+  <div class="grp"><button class="pbtn" id="bL">◀</button><button class="pbtn" id="bR">▶</button></div>
+  <div class="grp"><button class="pbtn" id="bJ">▲</button></div>
+</div>
+<div id="ui"></div>
+
+<script>
+/* ==========================================================================
+   경주 왕경 탐험 — 문화유산 탐사대  (횡스크롤)
+   · 단일 HTML, 외부 라이브러리 없음. 캔버스 2D로 모든 그래픽을 그립니다.
+   · 조작: 키보드 ← → / Space·↑ 점프  |  휴대전화는 화면 아래 버튼
+   · 스테이지 3개, 유물 15점, 스테이지마다 마지막에 확인 문제 1개
+========================================================================== */
+const cv=document.getElementById("cv"), ctx=cv.getContext("2d");
+const W=960,H=540, ui=document.getElementById("ui");
+const mq=q=>!!(window.matchMedia&&window.matchMedia(q).matches);
+const reduced=mq("(prefers-reduced-motion: reduce)");
+const isTouch=mq("(pointer:coarse)")||("ontouchstart" in window);
+if(isTouch)document.getElementById("pad").classList.add("on");
+
+function fit(){
+  const s=Math.min(innerWidth/W,(innerHeight-(isTouch?110:20))/H);
+  cv.style.width=(W*s)+"px";cv.style.height=(H*s)+"px";
+}
+addEventListener("resize",fit);fit();
+
+/* ---------------- 유물 데이터 ---------------- */
+const RELICS={
+  gyerim:{n:"계림의 금궤",d:"김알지가 발견되었다는 숲. 경주 김씨의 시조 설화가 깃든 곳이다.",c:"#e5b455"},
+  wolseong:{n:"월성 성벽 돌",d:"신라 왕궁이 있던 반달 모양의 언덕. 흙과 돌로 쌓은 토성이다.",c:"#b9a06a"},
+  poseok:{n:"포석정 물길",d:"굽이진 돌 물길에 잔을 띄우던 곳. 신라 말의 이야기가 서려 있다.",c:"#7fb3c8"},
+  namsan:{n:"남산 마애불",d:"남산 바위마다 새겨진 불상. 산 전체가 노천 박물관이다.",c:"#c9b18a"},
+  cheomseong:{n:"첨성대 돌 한 단",d:"선덕여왕 때 세운 돌 천문대. 27단으로 쌓아 올렸다.",c:"#e0d2ae"},
+  hwangnyong:{n:"황룡사 치미",d:"9층 목탑이 서 있던 절의 지붕 장식. 지금은 터만 남았다.",c:"#8c9aa6"},
+  cheonma:{n:"천마도 말다래",d:"천마총에서 나온 말 배가리개 그림. 벽화가 아니다.",c:"#dfe7ee"},
+  geumgwan:{n:"천마총 금관",d:"나뭇가지·사슴뿔 모양 장식과 곱은옥이 달린 신라 금관.",c:"#f0c96a"},
+  bunhwang:{n:"분황사 모전석탑",d:"돌을 벽돌 모양으로 다듬어 쌓은 탑. 선덕여왕 때 세웠다.",c:"#9d8f7d"},
+  wolji:{n:"월지 연꽃무늬 기와",d:"동궁과 월지에서 나온 기와. 별궁의 화려함을 보여 준다.",c:"#7ec4a8"},
+  dabo:{n:"다보탑 돌사자",d:"불국사 다보탑의 화려한 장식. 석가탑과 나란히 서 있다.",c:"#cfc4ac"},
+  seokga:{n:"무구정광대다라니경",d:"불국사 석가탑에서 나온, 현존 가장 오래된 목판 인쇄물.",c:"#e8d9b5"},
+  seokgul:{n:"석굴암 본존불",d:"토함산 인공 석굴의 부처. 동쪽 바다를 바라본다.",c:"#d9d2c4"},
+  jong:{n:"성덕대왕신종",d:"에밀레종이라고도 불리는 거대한 종. 금속 공예의 절정이다.",c:"#a9b7c0"},
+  face:{n:"얼굴무늬 수막새",d:"‘신라의 미소’라 불리는 기와. 은은한 웃음이 남아 있다.",c:"#e3c58f"}
+};
+
+/* ---------------- 스테이지 ---------------- */
+// p: 발판 [x,y,w,h]  r: 유물 [x,y,key]  h: 위험(구덩이는 발판 사이 빈틈으로 표현)
+const STAGES=[
+ {name:"제1구역 · 월성과 계림",sky:["#1b2b3a","#33506a"],ground:"#3c5a3e",deco:"forest",
+  len:3400,
+  p:[[0,470,700,70],[780,470,520,70],[1380,470,420,70],[1500,380,160,20],[1880,470,560,70],
+     [2000,370,150,20],[2260,300,150,20],[2520,470,880,70],[2640,380,150,20],[2860,310,150,20]],
+  r:[[300,410,"gyerim"],[900,410,"wolseong"],[1560,330,"namsan"],[2050,320,"poseok"],[2910,260,"face"]],
+  q:{q:"신라의 왕궁이 있던, 반달 모양의 언덕을 부르는 이름은?",
+     o:["월성","월지","포석정","계림"],a:0,
+     e:"월성은 반달 모양이라 반월성이라고도 불립니다. 흙과 돌로 쌓은 토성입니다."}},
+
+ {name:"제2구역 · 첨성대와 대릉원",sky:["#161d2e","#3a3f66"],ground:"#4a4436",deco:"tomb",
+  len:3600,
+  p:[[0,470,620,70],[700,470,380,70],[980,370,180,20],[1180,470,520,70],[1320,360,170,20],
+     [1560,290,170,20],[1800,470,620,70],[1950,370,180,20],[2200,300,180,20],
+     [2520,470,1080,70],[2700,380,170,20],[2960,310,170,20],[3180,250,170,20]],
+  r:[[260,410,"cheomseong"],[1020,310,"hwangnyong"],[1610,230,"bunhwang"],[2250,240,"cheonma"],[3230,190,"geumgwan"]],
+  q:{q:"천마도가 그려진 바탕은 무엇일까?",
+     o:["말다래(말 배가리개)","무덤 벽","비단 옷","종이 두루마리"],a:0,
+     e:"천마도는 고분 벽화가 아니라, 자작나무 껍질로 만든 말다래에 그린 그림입니다."}},
+
+ {name:"제3구역 · 토함산과 불국사",sky:["#2a1c2e","#6b4a52"],ground:"#4b3a34",deco:"temple",
+  len:3800,
+  p:[[0,470,560,70],[650,420,200,20],[930,370,200,20],[1210,320,200,20],[1480,470,520,70],
+     [1620,380,180,20],[1860,300,180,20],[2120,470,460,70],[2300,370,180,20],
+     [2560,300,180,20],[2820,470,1000,70],[2980,370,180,20],[3240,290,180,20],[3480,220,200,20]],
+  r:[[700,360,"wolji"],[1260,260,"dabo"],[1910,240,"seokga"],[2610,240,"seokgul"],[3530,160,"jong"]],
+  q:{q:"석굴암 본존불이 바라보고 있는 방향은?",
+     o:["동쪽 바다","서쪽 들판","남쪽 산","북쪽 하늘"],a:0,
+     e:"석굴암 본존불은 동쪽 바다를 바라봅니다. 해 뜰 무렵의 모습이 유명한 이유입니다."}}
+];
+
+/* ---------------- 상태 ---------------- */
+const KEY="wanggyeong_v1";
+let G={name:"",stage:0,found:[],hp:3,time:0,best:null,started:false,paused:true,cleared:false};
+const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(G))}catch(e){}};
+const loadG=()=>{try{const r=localStorage.getItem(KEY);return r?JSON.parse(r):null}catch(e){return null}};
+
+let P={x:60,y:380,vx:0,vy:0,on:false,face:1,anim:0,dead:0,win:false,safeX:60,safeY:380};
+let cam=0, keys={}, relicsOnMap=[], particles=[], popup=null, shake=0;
+
+/* ---------------- 입력 ---------------- */
+addEventListener("keydown",e=>{
+  if(["ArrowLeft","ArrowRight","ArrowUp"," "].includes(e.key))e.preventDefault();
+  keys[e.key]=true;
+  if((e.key===" "||e.key==="ArrowUp"))jump();
+});
+addEventListener("keyup",e=>keys[e.key]=false);
+function hold(id,set){
+  const b=document.getElementById(id);
+  const on=e=>{e.preventDefault();set(true)}, off=e=>{e.preventDefault();set(false)};
+  b.addEventListener("touchstart",on,{passive:false});b.addEventListener("touchend",off);
+  b.addEventListener("touchcancel",off);
+  b.addEventListener("mousedown",on);b.addEventListener("mouseup",off);b.addEventListener("mouseleave",off);
+}
+hold("bL",v=>keys.ArrowLeft=v);hold("bR",v=>keys.ArrowRight=v);
+hold("bJ",v=>{if(v)jump()});
+function jump(){if(!G.paused&&P.on&&!P.dead){P.vy=-14.6;P.on=false;puff(P.x,P.y+18,6,"#cfe3ee");}}
+
+/* ---------------- 물리 ---------------- */
+const ST=()=>STAGES[G.stage];
+function resetStage(keep){
+  P={x:60,y:360,vx:0,vy:0,on:false,face:1,anim:0,dead:0,win:false,safeX:60,safeY:360};
+  cam=0;particles=[];popup=null;
+  relicsOnMap=ST().r.map(([x,y,k])=>({x,y,k,got:keep&&G.found.includes(k),t:Math.random()*6}));
+  if(!keep){G.found=G.found.filter(k=>!ST().r.some(r=>r[2]===k));}
+}
+function update(dt){
+  if(G.paused||popup)return;
+  G.time+=dt;
+  const S=ST();
+  if(P.dead>0){P.dead-=dt; P.y+=6; if(P.dead<=0){
+      G.hp--; if(G.hp<=0){G.hp=3;resetStage(true);showFail();}
+      else{P.x=P.safeX||60;P.y=(P.safeY!==undefined?P.safeY:200);P.vx=0;P.vy=0;P.dead=0;}
+    } return;}
+
+  const acc=.86,max=6.0;
+  if(keys.ArrowLeft){P.vx-=acc;P.face=-1}
+  if(keys.ArrowRight){P.vx+=acc;P.face=1}
+  P.vx*=P.on?.84:.93;
+  P.vx=Math.max(-max,Math.min(max,P.vx));
+  P.vy+=.74; P.vy=Math.min(P.vy,17);
+
+  // x 이동
+  P.x+=P.vx;
+  if(P.x<10)P.x=10;
+  if(P.x>S.len-30)P.x=S.len-30;
+  // y 이동 + 발판
+  P.y+=P.vy; P.on=false;
+  for(const [x,y,w,h] of S.p){
+    if(P.x+14>x&&P.x-14<x+w){
+      if(P.vy>=0 && P.y+20>=y && P.y+20<=y+h+P.vy+2 && P.y+20-P.vy<=y+6){
+        P.y=y-20;P.vy=0;P.on=true;
+      }
+    }
+  }
+  if(P.y>H+120){P.dead=.45;shake=10;}
+  if(P.on){P.anim+=Math.abs(P.vx)*.09;P.safeX=P.x;P.safeY=P.y-30;}else P.anim=0;
+
+  // 유물
+  relicsOnMap.forEach(r=>{
+    r.t+=dt*3;
+    if(!r.got&&Math.abs(P.x-r.x)<28&&Math.abs(P.y-r.y)<34){
+      r.got=true;if(!G.found.includes(r.k))G.found.push(r.k);
+      puff(r.x,r.y,16,RELICS[r.k].c);shake=5;save();showRelic(r.k);
+    }
+  });
+  // 도착
+  if(P.x>S.len-70&&!P.win){P.win=true;showQuiz();}
+
+  cam+=((P.x-330)-cam)*.11;
+  cam=Math.max(0,Math.min(S.len-W,cam));
+  if(shake>0)shake*=.86;
+  particles=particles.filter(p=>{p.x+=p.vx;p.y+=p.vy;p.vy+=.18;p.l-=dt*2;return p.l>0});
+}
+function puff(x,y,n,c){
+  if(reduced)return;
+  for(let i=0;i<n;i++)particles.push({x,y,vx:(Math.random()-.5)*5,vy:-Math.random()*4-1,
+    l:1,c:c||"#e5b455",s:2+Math.random()*3});
+}
+
+/* ---------------- 그리기 ---------------- */
+function draw(){
+  const S=ST();
+  ctx.save();
+  if(shake>.4)ctx.translate((Math.random()-.5)*shake,(Math.random()-.5)*shake);
+  // 하늘
+  const g=ctx.createLinearGradient(0,0,0,H);
+  g.addColorStop(0,S.sky[0]);g.addColorStop(1,S.sky[1]);
+  ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
+  // 별/달
+  ctx.globalAlpha=.7;
+  for(let i=0;i<40;i++){const x=(i*211%W), y=(i*97%200);
+    ctx.fillStyle="#fff";ctx.fillRect(x,y,1.6,1.6);}
+  ctx.globalAlpha=1;
+  ctx.fillStyle="rgba(255,248,220,.85)";ctx.beginPath();ctx.arc(W-120,86,26,0,7);ctx.fill();
+  // 원경 산
+  layerHills(cam*.14,.34,H-120,"#0c1620");
+  layerHills(cam*.3+300,.5,H-72,"#12202c");
+  // 중경 장식
+  decoLayer(S,cam*.55);
+  // 지면·발판
+  ctx.save();ctx.translate(-cam,0);
+  for(const [x,y,w,h] of S.p){
+    ctx.fillStyle=S.ground;roundRect(x,y,w,h,6);ctx.fill();
+    ctx.fillStyle="rgba(255,255,255,.12)";ctx.fillRect(x+3,y+3,w-6,4);
+    ctx.strokeStyle="rgba(0,0,0,.28)";ctx.lineWidth=2;roundRect(x,y,w,h,6);ctx.stroke();
+  }
+  // 도착 문
+  const gp=S.p.filter(p=>S.len-40>=p[0]&&S.len-40<=p[0]+p[2]).sort((a,b)=>b[1]-a[1])[0];
+  gate(S.len-40,gp?gp[1]:470);
+  // 유물
+  relicsOnMap.forEach(r=>{if(!r.got)drawRelic(r)});
+  // 입자
+  particles.forEach(p=>{ctx.globalAlpha=Math.max(0,p.l);ctx.fillStyle=p.c;
+    ctx.fillRect(p.x-p.s/2,p.y-p.s/2,p.s,p.s);});
+  ctx.globalAlpha=1;
+  // 주인공
+  drawHero();
+  ctx.restore();
+  ctx.restore();
+  hud(S);
+}
+function roundRect(x,y,w,h,r){ctx.beginPath();ctx.moveTo(x+r,y);
+  ctx.arcTo(x+w,y,x+w,y+h,r);ctx.arcTo(x+w,y+h,x,y+h,r);
+  ctx.arcTo(x,y+h,x,y,r);ctx.arcTo(x,y,x+w,y,r);ctx.closePath();}
+function layerHills(off,amp,base,col){
+  ctx.fillStyle=col;ctx.beginPath();ctx.moveTo(0,H);
+  for(let x=0;x<=W;x+=20){
+    const t=(x+off)*.0045;
+    ctx.lineTo(x,base-Math.sin(t)*70*amp-Math.sin(t*2.3)*40*amp);
+  }
+  ctx.lineTo(W,H);ctx.closePath();ctx.fill();
+}
+function decoLayer(S,off){
+  ctx.save();ctx.translate(-off%600,0);
+  for(let i=0;i<4;i++){
+    const x=i*600+40;
+    if(S.deco==="forest"){
+      for(let j=0;j<4;j++)tree(x+j*120,H-120-j%2*10,.9);
+    }else if(S.deco==="tomb"){
+      for(let j=0;j<3;j++)mound(x+j*190,H-116,60+j*14);
+    }else{
+      pagodaBG(x+90,H-118);roofBG(x+330,H-116);
+    }
+  }
+  ctx.restore();
+}
+function tree(x,y,s){
+  ctx.fillStyle="#12241c";ctx.fillRect(x-4*s,y-30*s,8*s,32*s);
+  ctx.beginPath();ctx.arc(x,y-44*s,24*s,0,7);ctx.arc(x-18*s,y-32*s,17*s,0,7);
+  ctx.arc(x+18*s,y-32*s,17*s,0,7);ctx.fill();
+}
+function mound(x,y,r){
+  ctx.fillStyle="#2d2a22";ctx.beginPath();ctx.ellipse(x,y,r,r*.62,0,Math.PI,0);ctx.fill();
+  ctx.fillStyle="rgba(255,255,255,.05)";ctx.beginPath();ctx.ellipse(x-r*.3,y-r*.15,r*.28,r*.16,0,0,7);ctx.fill();
+}
+function pagodaBG(x,y){
+  ctx.fillStyle="#241a22";
+  for(let i=0;i<5;i++){const w=90-i*14,h=16;
+    ctx.fillRect(x-w/2,y-i*22-h,w,h);
+    ctx.fillRect(x-w/2-8,y-i*22-h-5,w+16,5);}
+}
+function roofBG(x,y){
+  ctx.fillStyle="#241a22";ctx.fillRect(x-70,y-46,140,46);
+  ctx.beginPath();ctx.moveTo(x-92,y-46);ctx.quadraticCurveTo(x,y-84,x+92,y-46);ctx.closePath();ctx.fill();
+}
+function gate(x,y){
+  ctx.strokeStyle="#e5b455";ctx.lineWidth=5;ctx.lineCap="round";
+  ctx.beginPath();ctx.moveTo(x-34,y);ctx.lineTo(x-34,y-96);
+  ctx.moveTo(x+34,y);ctx.lineTo(x+34,y-96);
+  ctx.moveTo(x-52,y-96);ctx.quadraticCurveTo(x,y-130,x+52,y-96);ctx.stroke();
+  ctx.globalAlpha=.4+Math.sin(Date.now()/300)*.2;
+  ctx.fillStyle="#e5b455";ctx.fillRect(x-30,y-92,60,92);ctx.globalAlpha=1;
+  ctx.fillStyle="#17120a";ctx.font="700 15px 'Gowun Batang',serif";ctx.textAlign="center";
+  ctx.fillText("도착",x,y-44);
+}
+function drawRelic(r){
+  const c=RELICS[r.k].c, fy=Math.sin(r.t)*5;
+  ctx.save();ctx.translate(r.x,r.y+fy);
+  ctx.globalAlpha=.25;ctx.fillStyle=c;ctx.beginPath();ctx.arc(0,0,22,0,7);ctx.fill();ctx.globalAlpha=1;
+  ctx.strokeStyle=c;ctx.lineWidth=2.6;ctx.lineJoin="round";
+  ctx.beginPath();ctx.moveTo(0,-14);ctx.lineTo(12,-5);ctx.lineTo(9,11);
+  ctx.lineTo(-9,11);ctx.lineTo(-12,-5);ctx.closePath();ctx.stroke();
+  ctx.beginPath();ctx.moveTo(-6,2);ctx.lineTo(0,-6);ctx.lineTo(6,2);ctx.stroke();
+  ctx.restore();
+}
+function drawHero(){
+  const x=P.x,y=P.y,f=P.face,run=P.on&&Math.abs(P.vx)>.6;
+  const sw=run?Math.sin(P.anim)*7:0, bob=run?Math.abs(Math.sin(P.anim))*2:0;
+  ctx.save();ctx.translate(x,y-bob);ctx.scale(f,1);
+  if(P.dead>0){ctx.globalAlpha=Math.max(.2,P.dead*2);ctx.rotate(.5)}
+  ctx.lineCap="round";ctx.lineJoin="round";ctx.lineWidth=3;
+  // 다리
+  ctx.strokeStyle="#2b3a48";
+  ctx.beginPath();ctx.moveTo(-2,8);ctx.lineTo(-4-sw,20);ctx.moveTo(3,8);ctx.lineTo(5+sw,20);ctx.stroke();
+  // 몸(도포)
+  ctx.fillStyle="#3d6b8f";
+  ctx.beginPath();ctx.moveTo(-9,10);ctx.lineTo(-6,-8);ctx.lineTo(7,-8);ctx.lineTo(10,10);ctx.closePath();ctx.fill();
+  ctx.strokeStyle="#9fd0e8";ctx.lineWidth=2;
+  ctx.beginPath();ctx.moveTo(-6,-8);ctx.lineTo(1,2);ctx.lineTo(7,-8);ctx.stroke();
+  // 팔
+  ctx.strokeStyle="#3d6b8f";ctx.lineWidth=3;
+  ctx.beginPath();ctx.moveTo(6,-4);ctx.lineTo(10+sw*.7,6);ctx.stroke();
+  // 머리
+  ctx.fillStyle="#f0d9bf";ctx.beginPath();ctx.arc(1,-16,8,0,7);ctx.fill();
+  ctx.fillStyle="#2b3a48";ctx.beginPath();ctx.arc(1,-20,8,Math.PI,0);ctx.fill();
+  ctx.fillStyle="#e5b455";ctx.fillRect(-7,-21,16,3);
+  ctx.beginPath();ctx.arc(1,-27,3,0,7);ctx.fill(); // 상투
+  ctx.fillStyle="#d1685a";ctx.beginPath();ctx.arc(9,-22,2.6,0,7);ctx.fill(); // 꽃
+  ctx.fillStyle="#1b2430";ctx.fillRect(3,-18,2,2);
+  ctx.restore();
+}
+function hud(S){
+  ctx.save();
+  ctx.fillStyle="rgba(10,14,18,.5)";roundRect(14,14,300,44,12);ctx.fill();
+  ctx.fillStyle="#eef3f7";ctx.font="700 15px 'Gowun Batang',serif";ctx.textAlign="left";
+  ctx.fillText(S.name,26,42);
+  // 하트
+  for(let i=0;i<3;i++){ctx.fillStyle=i<G.hp?"#d1685a":"rgba(255,255,255,.18)";
+    heart(W-40-i*30,32,9);}
+  // 유물 카운트
+  const got=S.r.filter(r=>G.found.includes(r[2])).length;
+  ctx.fillStyle="rgba(10,14,18,.5)";roundRect(W-320,54,180,34,10);ctx.fill();
+  ctx.fillStyle="#e5b455";ctx.font="700 14px 'Gowun Dodum',sans-serif";ctx.textAlign="center";
+  ctx.fillText("유물 "+got+" / "+S.r.length,W-230,76);
+  // 진행바
+  const pct=Math.min(1,P.x/(S.len-70));
+  ctx.fillStyle="rgba(255,255,255,.14)";roundRect(W/2-150,H-26,300,8,4);ctx.fill();
+  ctx.fillStyle="#e5b455";roundRect(W/2-150,H-26,300*pct,8,4);ctx.fill();
+  ctx.restore();
+}
+function heart(x,y,r){
+  ctx.beginPath();ctx.moveTo(x,y+r*.7);
+  ctx.bezierCurveTo(x-r*1.4,y-r*.4,x-r*.4,y-r*1.3,x,y-r*.4);
+  ctx.bezierCurveTo(x+r*.4,y-r*1.3,x+r*1.4,y-r*.4,x,y+r*.7);
+  ctx.fill();
+}
+
+/* ---------------- 루프 ---------------- */
+let last=performance.now();
+function loop(t){
+  const dt=Math.min(.05,(t-last)/1000);last=t;
+  update(dt);draw();requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+
+/* ---------------- UI ---------------- */
+const icon=k=>`<svg viewBox="0 0 40 40" fill="none" stroke="${RELICS[k].c}" stroke-width="2.4"
+  stroke-linejoin="round"><path d="M20 6 L32 14 L29 32 L11 32 L8 14 Z"/><path d="M13 22 L20 13 L27 22"/></svg>`;
+function overlay(html){
+  ui.innerHTML=`<div class="ov"><div class="box">${html}</div></div>`;G.paused=true;
+}
+function closeOv(){ui.innerHTML="";G.paused=false;popup=null;last=performance.now();}
+
+function title(){
+  const prev=loadG();
+  overlay(`<div class="tag">경주 도보여행 사전 특강</div>
+    <h1 class="serif" style="font-size:27px;line-height:1.3">경주 왕경 탐험<br>문화유산 탐사대</h1>
+    <p class="dim" style="margin:8px 0 0">세 구역을 달려 흩어진 유물 15점을 모아라.<br>
+      한 달 뒤, 이 길을 두 발로 걷는다.</p>
+    <div class="hr"></div>
+    <input id="nm" maxlength="14" placeholder="이름 (예: 3-2 김OO)"
+      style="width:100%;padding:12px;border-radius:12px;border:1px solid var(--line);
+      background:#131a22;color:var(--ink);font:inherit;font-size:16px;margin-bottom:10px">
+    <button class="btn pri" id="go">탐사 시작</button>
+    ${prev&&prev.name?`<button class="btn" id="cont">이어서 · ${prev.name} (유물 ${prev.found.length}/15)</button>`:""}
+    <p class="small" style="margin:8px 0 0">${isTouch?"화면 아래 버튼으로 이동하고 점프합니다."
+      :"키보드 ← → 이동 · Space 또는 ↑ 점프"}</p>`);
+  const start=()=>{
+    const v=document.getElementById("nm").value.trim()||"탐사대원";
+    G={name:v,stage:0,found:[],hp:3,time:0,best:null,started:true,paused:false,cleared:false};
+    resetStage(false);save();closeOv();
+  };
+  document.getElementById("go").onclick=start;
+  document.getElementById("nm").addEventListener("keydown",e=>{if(e.key==="Enter")start()});
+  const c=document.getElementById("cont");
+  if(c)c.onclick=()=>{G=prev;G.hp=3;G.paused=false;resetStage(true);closeOv();};
+}
+function showRelic(k){
+  popup=true;
+  overlay(`<div class="tag">유물 확보</div>
+    <div class="relic" style="border-color:${RELICS[k].c}">
+      <div class="ic">${icon(k)}</div>
+      <div><b>${RELICS[k].n}</b><p>${RELICS[k].d}</p></div></div>
+    <button class="btn pri" id="ok">계속 달린다</button>`);
+  document.getElementById("ok").onclick=closeOv;
+}
+function showFail(){
+  popup=true;
+  overlay(`<div class="tag" style="color:var(--clay)">탐사 중단</div>
+    <h2 class="serif" style="font-size:21px">다시 이 구역부터</h2>
+    <p class="dim">모은 유물은 그대로 남아 있다. 발밑을 조심하자.</p>
+    <button class="btn pri" id="ok">다시 도전</button>`);
+  document.getElementById("ok").onclick=closeOv;
+}
+function showQuiz(){
+  popup=true;
+  const S=ST(), q=S.q;
+  overlay(`<div class="tag">구역 관문 · 확인 문제</div>
+    <h3 class="serif" style="font-size:18px;margin-bottom:12px">${q.q}</h3>
+    <div id="opts">${q.o.map((o,i)=>`<button class="btn" data-i="${i}">${o}</button>`).join("")}</div>`);
+  let wrong=0;
+  ui.querySelectorAll("#opts .btn").forEach(b=>b.onclick=()=>{
+    const i=+b.dataset.i;
+    if(i===q.a){
+      b.classList.add("ok");
+      ui.querySelectorAll("#opts .btn").forEach(x=>x.disabled=true);
+      setTimeout(()=>{
+        overlay(`<div class="tag" style="color:var(--ok)">통과</div>
+          <p style="font-size:15.4px">${q.e}</p>
+          <button class="btn pri" id="nx">${G.stage<STAGES.length-1?"다음 구역으로":"탐사 결과 보기"}</button>`);
+        document.getElementById("nx").onclick=()=>{
+          if(G.stage<STAGES.length-1){G.stage++;G.hp=3;save();resetStage(true);closeOv();}
+          else{G.cleared=true;save();result();}
+        };
+      },500);
+    }else{b.classList.add("no");b.disabled=true;wrong++;
+      if(wrong>=q.o.length-1){ui.querySelector(`#opts .btn[data-i="${q.a}"]`).classList.add("ok");}}
+  });
+}
+function result(){
+  const total=Object.keys(RELICS).length, got=G.found.length;
+  const sec=Math.round(G.time);
+  const pct=Math.round(got/total*100);
+  let rank= pct===100?"탐사대장":pct>=80?"수석 탐사대원":pct>=60?"탐사대원":"견습 탐사대원";
+  const slots=Object.keys(RELICS).map(k=>
+    `<div class="slot ${G.found.includes(k)?"on":""}">${icon(k)}</div>`).join("");
+  overlay(`<div class="tag">탐사 완료</div>
+    <h2 class="serif" style="font-size:23px">${G.name}</h2>
+    <div class="serif" style="font-size:34px;color:var(--gold);margin:4px 0">${rank}</div>
+    <div class="grid">${slots}</div>
+    <div style="text-align:left">
+      <div class="kv"><span>모은 유물</span><b>${got} / ${total} (${pct}%)</b></div>
+      <div class="kv"><span>걸린 시간</span><b>${Math.floor(sec/60)}분 ${sec%60}초</b></div>
+      <div class="kv" style="border:none"><span>통과한 구역</span><b>3 / 3</b></div>
+    </div>
+    <p class="small" style="margin:10px 0">이 화면을 캡처해 선생님께 제출하세요.<br>
+      놓친 유물이 있다면 다시 달려 모두 채워 보세요.</p>
+    <button class="btn pri" id="again">처음부터 다시</button>
+    <button class="btn" id="last">마지막 구역만 다시</button>`);
+  document.getElementById("again").onclick=()=>{try{localStorage.removeItem(KEY)}catch(e){}title();};
+  document.getElementById("last").onclick=()=>{G.stage=2;G.hp=3;resetStage(true);closeOv();};
+}
+title();
+</script>
+</body>
+</html>
