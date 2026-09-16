@@ -1,0 +1,769 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>천년의 문 — 한국사 시간여행</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&family=Gowun+Dodum&display=swap" rel="stylesheet">
+<style>
+:root{--ink:#f6f1e6;--dim:#c3b8a4;--gold:#e8bb60;--jade:#5cbcab;--clay:#d8735c;
+  --panel:rgba(14,12,10,.82);--line:rgba(232,187,96,.34)}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;overflow:hidden;background:#0b0a08;color:var(--ink);
+  font-family:'Gowun Dodum','Apple SD Gothic Neo',system-ui,sans-serif;font-size:16px}
+h1,h2,h3,.serif{font-family:'Gowun Batang',serif;margin:0}
+#game{position:fixed;inset:0;display:flex;flex-direction:column}
+
+/* ---- 배경 ---- */
+#bg{position:absolute;inset:0;overflow:hidden;transition:opacity .6s}
+#bg .sky{position:absolute;inset:0;transition:background 1.2s}
+#bg svg{position:absolute;left:50%;bottom:0;transform:translateX(-50%);
+  width:max(1000px,105%);height:auto;animation:bgin 1.1s cubic-bezier(.2,.8,.25,1) both}
+@keyframes bgin{from{opacity:0;transform:translateX(-50%) scale(1.06)}to{opacity:1;transform:translateX(-50%) scale(1)}}
+#vig{position:absolute;inset:0;pointer-events:none;
+  background:radial-gradient(120% 90% at 50% 20%,transparent 40%,rgba(0,0,0,.72) 100%)}
+#flash{position:absolute;inset:0;pointer-events:none;background:#fff;opacity:0}
+#flash.on{animation:fl 1.1s ease-out}
+@keyframes fl{0%{opacity:.95}100%{opacity:0}}
+
+/* ---- 상단 ---- */
+#top{position:relative;z-index:5;display:flex;gap:6px;align-items:center;padding:10px 12px}
+.era{flex:1;font-size:12px;letter-spacing:.14em;color:var(--gold);
+  text-shadow:0 2px 8px rgba(0,0,0,.8)}
+.mini{font-size:11.5px;padding:6px 10px;border-radius:9px;border:1px solid var(--line);
+  background:rgba(14,12,10,.6);color:var(--dim);cursor:pointer;font-family:inherit;backdrop-filter:blur(4px)}
+.mini.on{color:var(--gold);border-color:var(--gold)}
+
+/* ---- 인물 ---- */
+#chars{position:relative;z-index:3;flex:1;display:flex;align-items:flex-end;
+  justify-content:center;gap:2vw;pointer-events:none;padding-bottom:4px;min-height:0}
+#chars .ch{height:min(46vh,340px);animation:chin .5s cubic-bezier(.2,1.2,.35,1) both}
+#chars .ch.dim{filter:brightness(.55) saturate(.7)}
+@keyframes chin{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:none}}
+
+/* ---- 대사창 ---- */
+#box{position:relative;z-index:6;margin:0 10px 10px;background:var(--panel);
+  border:1px solid var(--line);border-radius:16px;padding:14px 16px 12px;
+  backdrop-filter:blur(9px);box-shadow:0 -6px 30px rgba(0,0,0,.5);cursor:pointer}
+#who{font-family:'Gowun Batang',serif;font-size:14.5px;color:var(--gold);margin-bottom:4px;
+  letter-spacing:.05em;min-height:1.2em}
+#txt{font-size:16.4px;line-height:1.72;min-height:4.6em;max-height:34vh;overflow:auto}
+#txt.narr{font-family:'Gowun Batang',serif;color:#e7ddc8}
+#cur{color:var(--gold);animation:bl .9s steps(1) infinite;font-size:13px}
+@keyframes bl{50%{opacity:0}}
+#choices{position:relative;z-index:7;margin:0 10px 12px}
+.ch-btn{display:block;width:100%;padding:13px 15px;margin-bottom:8px;border-radius:13px;
+  border:1px solid var(--line);background:rgba(20,17,13,.86);color:var(--ink);
+  font:inherit;font-size:15.4px;text-align:left;cursor:pointer;backdrop-filter:blur(6px);
+  animation:cin .36s cubic-bezier(.2,.9,.25,1) both;transition:.16s}
+.ch-btn:active{transform:scale(.99)}
+.ch-btn:hover{border-color:var(--gold);background:rgba(232,187,96,.14)}
+.ch-btn.ok{border-color:var(--jade);background:rgba(92,188,171,.2)}
+.ch-btn.no{border-color:var(--clay);background:rgba(216,115,92,.16);animation:sh .4s}
+@keyframes cin{from{opacity:0;transform:translateX(-12px)}to{opacity:1;transform:none}}
+@keyframes sh{0%,100%{transform:translateX(0)}25%{transform:translateX(-7px)}75%{transform:translateX(6px)}}
+
+/* ---- 스탯 ---- */
+#stats{position:absolute;right:12px;top:46px;z-index:5;display:flex;flex-direction:column;gap:5px}
+.st{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--dim);
+  background:rgba(14,12,10,.55);padding:4px 9px;border-radius:99px;border:1px solid var(--line);backdrop-filter:blur(4px)}
+.st i{display:block;width:44px;height:5px;border-radius:99px;background:rgba(255,255,255,.16);overflow:hidden}
+.st i>b{display:block;height:100%;width:0;border-radius:99px;transition:width .6s cubic-bezier(.2,.8,.2,1)}
+.gain{position:fixed;right:18px;z-index:40;font-weight:700;font-size:15px;
+  font-family:'Gowun Batang',serif;animation:gu 1.2s ease-out forwards;text-shadow:0 2px 8px #000}
+@keyframes gu{0%{opacity:0;transform:translateY(8px)}20%{opacity:1}100%{opacity:0;transform:translateY(-34px)}}
+
+/* ---- 오버레이 ---- */
+.ov{position:fixed;inset:0;z-index:50;display:grid;place-items:center;padding:16px;
+  background:rgba(6,5,4,.88);backdrop-filter:blur(6px);animation:f .3s both}
+@keyframes f{from{opacity:0}to{opacity:1}}
+.card{width:100%;max-width:480px;background:rgba(20,17,13,.96);border:1px solid var(--line);
+  border-radius:18px;padding:20px;max-height:92vh;overflow:auto;
+  animation:u .38s cubic-bezier(.2,.9,.25,1) both;text-align:center}
+@keyframes u{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:none}}
+.btn{display:block;width:100%;padding:13px;border-radius:12px;border:1px solid var(--line);
+  background:rgba(30,25,19,.9);color:var(--ink);font:inherit;font-size:15.4px;margin-bottom:9px;cursor:pointer}
+.btn.pri{background:linear-gradient(180deg,var(--gold),#c39433);color:#1a1307;border-color:var(--gold);font-weight:700}
+.tag{font-size:11.5px;letter-spacing:.26em;color:var(--gold);margin-bottom:6px}
+.dim{color:var(--dim);font-size:14px}
+.small{font-size:12.4px;color:var(--dim)}
+.hr{height:1px;background:var(--line);margin:14px 0}
+.kv{display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--line);
+  font-size:14.4px;text-align:left}
+.logline{font-size:13.6px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.08);
+  color:var(--dim);text-align:left}
+.logline b{color:var(--gold);font-family:'Gowun Batang',serif}
+.note{border-left:3px solid var(--jade);padding:8px 0 8px 12px;font-size:13.6px;
+  color:var(--dim);margin:12px 0;text-align:left}
+input[type=text]{width:100%;padding:12px 14px;border-radius:12px;border:1px solid var(--line);
+  background:rgba(30,25,19,.9);color:var(--ink);font:inherit;font-size:16px;margin-bottom:10px}
+@media (prefers-reduced-motion:reduce){*{animation-duration:.01ms!important;transition-duration:.01ms!important}}
+</style>
+</head>
+<body>
+<div id="game">
+  <div id="bg"><div class="sky"></div><div id="art"></div></div>
+  <div id="vig"></div><div id="flash"></div>
+  <div id="top">
+    <span class="era" id="era"></span>
+    <button class="mini" id="mSnd">🔇 소리</button>
+    <button class="mini" id="mAuto">자동</button>
+    <button class="mini" id="mLog">기록</button>
+    <button class="mini" id="mSave">저장</button>
+    <button class="mini" id="mMenu">메뉴</button>
+  </div>
+  <div id="stats"></div>
+  <div id="chars"></div>
+  <div id="choices"></div>
+  <div id="box"><div id="who"></div><div id="txt"></div></div>
+</div>
+<div id="ui"></div>
+
+<script>
+/* ==========================================================================
+   천년의 문 — 한국사 시간여행 비주얼노벨
+   경주 수학여행에서 신라 천년으로. 4개 시대를 지나며 선택이 결말을 만든다.
+   · 단일 HTML, 외부 라이브러리 없음
+   · [선생님께] STORY 배열만 고치면 대사·선택지·문제를 자유롭게 바꿀 수 있습니다.
+========================================================================== */
+const $=id=>document.getElementById(id);
+const esc=s=>String(s).replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
+const mq=q=>!!(window.matchMedia&&window.matchMedia(q).matches);
+const reduced=mq("(prefers-reduced-motion: reduce)");
+
+/* ---------------- 인물 초상 ---------------- */
+const F={
+ smile:`<path d="M34 46 L42 46"/><path d="M58 46 L66 46"/><path d="M42 62 C46 68 54 68 58 62"/>`,
+ calm:`<path d="M34 46 L42 46"/><path d="M58 46 L66 46"/><path d="M44 63 L56 63"/>`,
+ surp:`<circle cx="38" cy="46" r="3.4"/><circle cx="62" cy="46" r="3.4"/><ellipse cx="50" cy="63" rx="5" ry="6"/>`,
+ sad:`<path d="M34 44 C38 49 42 49 44 44"/><path d="M56 44 C58 49 62 49 66 44"/><path d="M44 66 C47 62 53 62 56 66"/>`
+};
+function body(acc,inner,face){
+ return `<svg class="ch" viewBox="0 0 100 200" xmlns="http://www.w3.org/2000/svg" fill="none"
+  stroke="${acc}" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+  ${inner}
+  <path d="M32 34 C32 62 38 78 50 78 C62 78 68 62 68 34"/>
+  <g stroke-width="2.2">${face||F.calm}</g></svg>`;
+}
+const CHAR={
+ hero:(f)=>body("var(--jade)",`
+   <path d="M30 32 C30 12 70 12 70 32"/><path d="M28 34 C26 24 34 14 50 14 C66 14 74 24 72 34"/>
+   <path d="M50 78 L50 88"/>
+   <path d="M22 200 C22 118 32 92 50 88 C68 92 78 118 78 200"/>
+   <path d="M50 88 L40 104 L50 112 L60 104 Z"/>
+   <path d="M30 120 L70 120"/><path d="M26 150 L74 150"/>
+   <path d="M34 92 L28 118 M66 92 L72 118"/>`,f),
+ hwarang:(f)=>body("var(--gold)",`
+   <path d="M50 10 L50 18"/><circle cx="50" cy="7" r="3.6" fill="var(--gold)" stroke="none"/>
+   <path d="M32 28 C32 18 68 18 68 28"/><path d="M30 30 L70 30"/>
+   <g stroke="var(--clay)" stroke-width="2"><circle cx="72" cy="27" r="3.4"/><circle cx="66" cy="21" r="2.6"/></g>
+   <path d="M50 78 L50 88"/>
+   <path d="M20 200 C20 116 30 92 50 88 C70 92 80 116 80 200"/>
+   <path d="M50 88 L38 106 L50 114 L62 106 Z"/>
+   <path d="M28 136 L72 136"/><path d="M24 96 L18 124 M76 96 L82 124"/>
+   <path d="M78 108 L86 176" stroke-width="3"/>`,f),
+ queen:(f)=>body("var(--gold)",`
+   <path d="M26 30 C26 8 74 8 74 30"/>
+   <path d="M30 14 L34 4 L44 12 L50 2 L56 12 L66 4 L70 14"/>
+   <path d="M24 32 L76 32"/>
+   <path d="M50 78 L50 90"/>
+   <path d="M14 200 C14 120 28 94 50 90 C72 94 86 120 86 200"/>
+   <path d="M50 90 L36 112 L50 122 L64 112 Z"/>
+   <path d="M22 146 L78 146"/><path d="M18 172 L82 172"/>
+   <path d="M26 96 C18 108 16 126 18 140 M74 96 C82 108 84 126 82 140"/>`,f),
+ mason:(f)=>body("var(--dim)",`
+   <path d="M28 30 C28 18 72 18 72 30"/><path d="M26 32 L74 32"/>
+   <path d="M50 78 L50 88"/>
+   <path d="M18 200 C18 118 30 92 50 88 C70 92 82 118 82 200"/>
+   <path d="M34 72 C38 82 62 82 66 72 L66 80 L34 80 Z"/>
+   <path d="M26 128 L74 128"/>
+   <path d="M76 96 L88 120 L84 140" stroke-width="3"/>`,f),
+ monk:(f)=>body("var(--jade)",`
+   <path d="M30 32 C30 14 70 14 70 32"/>
+   <path d="M50 78 L50 90"/>
+   <path d="M20 200 C20 120 30 96 50 90 C70 96 80 120 80 200"/>
+   <path d="M50 90 L30 122 M50 90 L70 122"/>
+   <path d="M26 140 L74 140"/><circle cx="50" cy="26" r="3"/>`,f),
+ girl:(f)=>body("var(--clay)",`
+   <path d="M28 36 C28 14 72 14 72 36"/>
+   <path d="M28 36 C22 56 24 70 28 80 M72 36 C78 56 76 70 72 80"/>
+   <path d="M50 78 L50 90"/>
+   <path d="M24 200 C24 124 32 96 50 90 C68 96 76 124 76 200"/>
+   <path d="M50 90 L50 200"/><path d="M28 130 L72 130"/>`,f)
+};
+const NAMES={hero:"나",hwarang:"풍월",queen:"선덕여왕",mason:"아사",monk:"법운",girl:"보라",narr:""};
+
+/* ---------------- 배경 ---------------- */
+const BG={
+ modern:{sky:"linear-gradient(180deg,#8fc4e8,#dfe9c9)",art:`
+  <svg viewBox="0 0 1000 420"><g fill="none" stroke="#5f7a52" stroke-width="3" opacity=".8">
+   <path d="M0 400 C120 350 240 370 340 340 C440 312 520 344 620 322 C720 300 860 336 1000 306 L1000 420 L0 420 Z" fill="#6c8a5c" stroke="none"/>
+   <path d="M0 420 L1000 420" /></g>
+  <g fill="none" stroke="#c9a15a" stroke-width="5" stroke-linecap="round" stroke-linejoin="round">
+   <path d="M430 380 C414 300 414 232 462 190 L538 190 C586 232 586 300 570 380" fill="#e6d9b4"/>
+   <path d="M404 380 L596 380 L616 402 L384 402 Z" fill="#d8c79f"/>
+   <path d="M420 300 L580 300 M424 246 L576 246"/>
+   <rect x="470" y="252" width="60" height="48" rx="3" fill="#a88a4d"/>
+   <path d="M448 190 L552 190 M436 168 L564 168"/></g>
+  <g fill="#7ba05b" opacity=".9"><ellipse cx="140" cy="392" rx="90" ry="26"/><ellipse cx="880" cy="386" rx="110" ry="30"/></g></svg>`},
+ field6:{sky:"linear-gradient(180deg,#f4c98a,#ead2a0)",art:`
+  <svg viewBox="0 0 1000 420">
+  <g fill="#8a7444" opacity=".55"><path d="M0 300 C140 240 240 280 360 244 C470 212 560 258 690 226 C800 198 900 238 1000 214 L1000 420 L0 420 Z"/></g>
+  <g fill="#6f5c35"><path d="M0 356 C160 320 300 348 440 326 C580 304 700 340 840 318 C910 308 960 322 1000 316 L1000 420 L0 420 Z"/></g>
+  <g fill="none" stroke="#4d3f22" stroke-width="4" opacity=".85">
+   <path d="M150 356 L150 300 M136 306 L164 306 M142 292 L158 292"/>
+   <path d="M850 350 L850 296 M836 302 L864 302"/></g>
+  <g fill="#5b4a2a" opacity=".8"><ellipse cx="300" cy="352" rx="60" ry="20"/><ellipse cx="700" cy="346" rx="70" ry="22"/></g></svg>`},
+ palace7:{sky:"linear-gradient(180deg,#141d34,#3a3358)",art:`
+  <svg viewBox="0 0 1000 420">
+  <g fill="none" stroke="#e8bb60" stroke-width="3" opacity=".7">
+   <circle cx="150" cy="70" r="3"/><circle cx="260" cy="40" r="2.4"/><circle cx="820" cy="58" r="3"/>
+   <circle cx="900" cy="110" r="2.4"/><circle cx="420" cy="36" r="2.4"/>
+   <path d="M150 70 L260 40 L420 36 L820 58 L900 110" stroke-width="1"/></g>
+  <circle cx="860" cy="80" r="26" fill="rgba(255,248,220,.8)"/>
+  <g fill="#1e2440"><path d="M0 330 C160 300 320 322 480 300 C640 278 800 314 1000 288 L1000 420 L0 420 Z"/></g>
+  <g fill="none" stroke="#e8bb60" stroke-width="4" stroke-linejoin="round">
+   <g transform="translate(220,0)">
+    <path d="M0 330 L0 300 L200 300 L200 330 M-12 300 L212 300"/>
+    <path d="M12 300 L12 272 L188 272 L188 300 M0 272 L200 272"/>
+    <path d="M24 272 L24 246 L176 246 L176 272 M12 246 L188 246"/>
+    <path d="M36 246 L36 222 L164 222 L164 246 M24 222 L176 222"/>
+    <path d="M48 222 L48 200 L152 200 L152 222 M36 200 L164 200"/>
+    <path d="M60 200 L60 180 L140 180 L140 200 M50 180 L150 180"/>
+    <path d="M72 180 L72 162 L128 162 L128 180 M62 162 L138 162"/>
+    <path d="M84 162 L84 146 L116 146 L116 162 M74 146 L126 146"/>
+    <path d="M96 146 L96 132 L104 132 L104 146 M88 132 L112 132"/>
+    <path d="M100 132 L100 112 M92 120 L108 120"/></g>
+   <path d="M760 330 C748 284 748 246 772 218 L812 218 C836 246 836 284 824 330" fill="rgba(232,187,96,.1)"/>
+   <path d="M746 330 L838 330 L850 342 L734 342 Z"/>
+   <path d="M752 288 L832 288 M756 254 L828 254"/></g></svg>`},
+ temple8:{sky:"linear-gradient(180deg,#2c1f2b,#7d5a4a)",art:`
+  <svg viewBox="0 0 1000 420">
+  <g fill="#3a2a2c"><path d="M0 280 C120 230 220 268 340 236 C460 204 560 246 700 214 C820 186 920 224 1000 202 L1000 420 L0 420 Z"/></g>
+  <g fill="none" stroke="#e8bb60" stroke-width="4" stroke-linejoin="round" stroke-linecap="round">
+   <path d="M120 360 L880 360"/>
+   <path d="M300 360 L300 300 L700 300 L700 360" fill="rgba(232,187,96,.08)"/>
+   <path d="M270 300 L730 300 L690 254 L310 254 Z" fill="rgba(232,187,96,.12)"/>
+   <path d="M270 300 C300 284 700 284 730 300"/>
+   <path d="M360 360 L360 306 M460 360 L460 306 M540 360 L540 306 M640 360 L640 306"/>
+   <g transform="translate(150,0)">
+    <path d="M0 360 L0 336 L60 336 L60 360 M-8 336 L68 336"/>
+    <path d="M6 336 L6 312 L54 312 L54 336 M-2 312 L62 312"/>
+    <path d="M14 312 L14 292 L46 292 L46 312 M6 292 L54 292"/>
+    <path d="M30 292 L30 272 M22 280 L38 280"/></g>
+   <g transform="translate(790,0)">
+    <path d="M0 360 L0 330 L60 330 L60 360 M-8 330 L68 330"/>
+    <path d="M10 330 L10 300 L50 300 L50 330 M2 300 L58 300"/>
+    <path d="M18 300 L18 274 L42 274 L42 300 M10 274 L50 274"/>
+    <path d="M30 274 L30 254 M20 262 L40 262"/></g>
+   <path d="M200 400 L800 400" opacity=".4"/></g></svg>`},
+ bell:{sky:"linear-gradient(180deg,#2a1810,#6e3a22)",art:`
+  <svg viewBox="0 0 1000 420">
+  <g fill="#2d1a12"><path d="M0 320 L1000 320 L1000 420 L0 420 Z"/></g>
+  <g fill="none" stroke="#e8bb60" stroke-width="4" stroke-linejoin="round" stroke-linecap="round">
+   <path d="M420 320 C404 236 420 176 500 156 C580 176 596 236 580 320 Z" fill="rgba(232,187,96,.1)"/>
+   <path d="M412 320 L588 320 M424 268 L576 268 M432 224 L568 224"/>
+   <path d="M500 156 L500 128 M476 128 C484 106 516 106 524 128 C516 142 484 142 476 128 Z"/>
+   <path d="M340 320 L340 130 L660 130 L660 320" opacity=".6"/>
+   <path d="M320 130 L680 130" opacity=".6"/>
+   <path d="M150 320 C150 280 210 280 210 320 Z" fill="rgba(216,115,92,.3)"/>
+   <path d="M790 320 C790 284 846 284 846 320 Z" fill="rgba(216,115,92,.3)"/>
+   <g opacity=".5"><path d="M170 270 C160 250 182 238 172 218 M820 274 C812 256 832 244 824 224"/></g></g></svg>`},
+ ruins:{sky:"linear-gradient(180deg,#38323c,#8b7f6e)",art:`
+  <svg viewBox="0 0 1000 420">
+  <g fill="#4b4438"><path d="M0 300 C140 268 280 292 420 272 C560 252 700 284 1000 258 L1000 420 L0 420 Z"/></g>
+  <g fill="none" stroke="#d9c79c" stroke-width="3.6" stroke-linejoin="round" opacity=".9">
+   <path d="M140 360 L860 360"/>
+   <path d="M250 360 L250 300 L268 300 L268 360 M330 360 L330 288 L348 288 L348 360"/>
+   <path d="M420 360 L420 310 L438 310 L438 360"/>
+   <path d="M600 360 L600 296 L620 296 L620 360 M690 360 L690 320 L708 320 L708 360"/>
+   <path d="M230 300 L290 300 M310 288 L370 288 M580 296 L640 296"/>
+   <path d="M760 360 L760 306 C760 288 800 288 800 306 L800 360" opacity=".8"/>
+   <g opacity=".55"><path d="M170 340 C190 330 210 344 230 336"/><path d="M830 344 C850 334 870 346 890 338"/></g></g></svg>`}
+};
+
+/* ---------------- 대본 ----------------
+   t:"n" 내레이션 / "d" 대사 / "c" 선택지 / "q" 문제 / "bg" 배경전환 / "end" 결말
+------------------------------------------ */
+const STORY=[
+ {id:"s0",t:"bg",bg:"modern",era:"2026년 · 경주 수학여행",chars:["hero"]},
+ {t:"n",x:"9월의 경주. 수학여행 둘째 날 아침, 우리 반은 첨성대 앞에 모여 있었다."},
+ {t:"n",x:"선생님의 설명이 이어졌지만, 나는 돌 하나하나를 세고 있었다. 스물일곱 단. 정말이었다."},
+ {t:"d",w:"hero",f:"calm",x:"…1400년 전 사람들이 쌓은 돌을, 지금 내가 세고 있다는 게 이상하다."},
+ {t:"n",x:"그때, 첨성대 창문 안쪽에서 빛이 새어 나왔다. 아무도 보지 못한 것 같았다."},
+ {t:"c",q:"어떻게 할까?",opts:[
+   {x:"가까이 다가가 창 안을 들여다본다",to:"s1",st:{용기:2}},
+   {x:"선생님께 알린다",to:"s1b",st:{인연:1}},
+   {x:"사진을 찍어 둔다",to:"s1c",st:{지식:1}}]},
+ {id:"s1b",t:"d",w:"hero",f:"surp",x:"선생님! 저기 안쪽에서…"},
+ {t:"n",x:"돌아본 순간 빛은 사라져 있었다. 그러나 발끝이 저절로 첨성대 쪽으로 움직였다.",to:"s1"},
+ {id:"s1c",t:"n",x:"화면 속 첨성대는 평범했다. 그런데 사진 한구석에, 사람의 그림자 같은 것이 찍혀 있었다.",to:"s1"},
+
+ {id:"s1",t:"n",x:"돌에 손을 대는 순간, 세상이 흰빛으로 지워졌다."},
+ {t:"flash"},
+ {t:"bg",bg:"field6",era:"6세기 · 진흥왕 시대",chars:["hero","hwarang"]},
+ {t:"n",x:"눈을 떴을 때, 아스팔트도 안내판도 없었다. 흙길과 낮은 초가, 그리고 멀리 보이는 들판."},
+ {t:"d",w:"hwarang",f:"surp",x:"거기 너. 처음 보는 옷이구나. 어느 마을 아이냐?"},
+ {t:"d",w:"hero",f:"surp",x:"저, 저는… 2026년에서…"},
+ {t:"d",w:"hwarang",f:"smile",x:"이천이십육? 하하, 재미있는 아이로군. 나는 풍월. 화랑이다."},
+ {t:"d",w:"hwarang",f:"calm",x:"진흥왕께서 우리 청소년 수련 단체를 나라의 조직으로 삼으셨다. 이제 화랑은 나라의 인재를 기르는 길이다."},
+ {t:"n",x:"화랑도. 교과서에서 본 단어가 눈앞에서 걸어다니고 있었다."},
+ {t:"c",q:"풍월에게 무엇을 물어볼까?",opts:[
+   {x:"화랑은 무엇을 배우나요?",to:"s2a",st:{지식:2}},
+   {x:"지금 신라는 어떤 나라인가요?",to:"s2b",st:{지식:2}},
+   {x:"저를 도와주실 수 있나요?",to:"s2c",st:{인연:2}}]},
+ {id:"s2a",t:"d",w:"hwarang",f:"calm",x:"산과 물을 찾아다니며 몸을 단련하고, 노래와 춤을 익히고, 무엇보다 서로를 믿는 법을 배운다.",to:"s2"},
+ {id:"s2b",t:"d",w:"hwarang",f:"smile",x:"진흥왕께서 한강 유역을 차지하셨다. 국경을 돌며 순수비를 세우셨지. 신라는 지금 커지는 중이다.",to:"s2"},
+ {id:"s2c",t:"d",w:"hwarang",f:"smile",x:"길 잃은 아이를 두고 가는 화랑은 없다. 따라오너라.",to:"s2"},
+
+ {id:"s2",t:"d",w:"hwarang",f:"calm",x:"우리에게는 지켜야 할 다섯 가지 계율이 있다. 세속오계라 한다."},
+ {t:"q",q:"세속오계에 들어 있지 않은 것은?",
+  o:["임전무퇴(싸움에 나가 물러서지 않는다)","교우이신(벗을 믿음으로 사귄다)","사군이충(임금을 충성으로 섬긴다)","불립문자(글에 기대지 않는다)"],
+  a:3,e:"‘불립문자’는 훗날 선종 불교의 가르침입니다. 세속오계는 사군이충·사친이효·교우이신·임전무퇴·살생유택입니다.",
+  st:{지식:3}},
+ {t:"d",w:"hwarang",f:"smile",x:"제법이구나. 너는 어느 시대에서 왔든, 배우기를 즐기는 아이다."},
+ {t:"n",x:"풍월이 손에 쥐어 준 것은 작은 돌 하나였다. 순수비를 세울 때 쓰고 남은 조각이라 했다."},
+ {t:"n",x:"돌이 손바닥에서 따뜻해지더니, 다시 세상이 흰빛으로 지워졌다."},
+ {t:"flash"},
+
+ {t:"bg",bg:"palace7",era:"7세기 · 선덕여왕 시대",chars:["hero","queen"]},
+ {t:"n",x:"밤이었다. 눈앞에 거대한 목탑이 아홉 층으로 솟아 있었고, 그 옆에 낯익은 돌탑이 서 있었다."},
+ {t:"d",w:"hero",f:"surp",x:"저건… 첨성대? 그리고 저 탑은, 황룡사 9층 목탑!"},
+ {t:"d",w:"queen",f:"calm",x:"내 이름을 아는 아이보다, 내 탑을 아는 아이가 더 반갑구나."},
+ {t:"n",x:"돌아보니 한 사람이 서 있었다. 그가 누구인지, 나는 묻기도 전에 알았다."},
+ {t:"d",w:"queen",f:"calm",x:"사람들은 여자가 왕이 되었다고 수군거렸다. 그래서 나는 하늘을 보기로 했다."},
+ {t:"d",w:"queen",f:"calm",x:"하늘의 일을 아는 자가 땅의 일도 다스릴 수 있으니. 저 돌을 스물일곱 단으로 쌓았다."},
+ {t:"c",q:"여왕에게 무엇을 말할까?",opts:[
+   {x:"1400년 뒤에도 저 첨성대는 그대로 서 있습니다",to:"s3a",st:{인연:3}},
+   {x:"9층 목탑은 무엇을 위해 세우셨습니까?",to:"s3b",st:{지식:3}},
+   {x:"여왕이 되는 일은 두렵지 않으셨습니까?",to:"s3c",st:{용기:3}}]},
+ {id:"s3a",t:"d",w:"queen",f:"smile",x:"…그 말이 참이라면, 나는 오늘 밤 잠을 잘 이루겠구나.",to:"s3"},
+ {id:"s3b",t:"d",w:"queen",f:"calm",x:"아홉 층은 아홉 나라다. 탑을 세워 마음을 하나로 모으려 했다. 돌보다 마음이 어려운 법이지.",to:"s3"},
+ {id:"s3c",t:"d",w:"queen",f:"calm",x:"두려웠다. 두려워하지 않았다면 하늘을 보지도 않았을 것이다.",to:"s3"},
+
+ {id:"s3",t:"n",x:"멀리서 말발굽 소리가 들렸다. 백제와 고구려의 압박이 거세지던 때였다."},
+ {t:"d",w:"queen",f:"sad",x:"곧 큰 싸움이 있을 것이다. 훗날 신라는 당나라와 손을 잡게 되겠지."},
+ {t:"q",q:"신라가 삼국을 통일하는 과정에서 마지막으로 싸워 몰아낸 상대는?",
+  o:["당나라","백제","고구려","가야"],a:0,
+  e:"백제·고구려를 무너뜨린 뒤, 한반도 전체를 삼키려 한 당나라를 매소성·기벌포에서 몰아내며 통일을 완성했습니다.",
+  st:{지식:3}},
+ {t:"d",w:"queen",f:"calm",x:"네가 아는 것이 우리의 앞날이라면, 부디 끝까지 지켜보아라."},
+ {t:"flash"},
+
+ {t:"bg",bg:"temple8",era:"8세기 · 경덕왕 시대",chars:["hero","mason"]},
+ {t:"n",x:"다시 눈을 떴을 때, 나는 산 중턱의 절 마당에 서 있었다. 두 개의 탑이 나란히 서 있었다."},
+ {t:"d",w:"hero",f:"smile",x:"다보탑과 석가탑… 불국사다. 어제 사진으로 봤던 그대로야."},
+ {t:"d",w:"mason",f:"calm",x:"어제 보았다고? 이 탑은 아직 손이 덜 갔는데."},
+ {t:"n",x:"돌가루를 뒤집어쓴 석공이 정을 내려놓고 나를 보았다. 손등에 굳은살이 두꺼웠다."},
+ {t:"d",w:"mason",f:"calm",x:"나는 아사. 이 탑을 다듬는다. 저 화려한 것이 다보탑, 이 단정한 것이 석가탑이다."},
+ {t:"d",w:"mason",f:"smile",x:"사람들은 화려한 쪽을 먼저 본다. 그러나 오래 서 있는 건 단정한 쪽이지."},
+ {t:"c",q:"아사에게 무엇을 물어볼까?",opts:[
+   {x:"탑 하나를 만드는 데 얼마나 걸립니까?",to:"s4a",st:{인연:3}},
+   {x:"석가탑 안에는 무엇을 넣습니까?",to:"s4b",st:{지식:3}},
+   {x:"이 일이 힘들지는 않으십니까?",to:"s4c",st:{인연:2,용기:1}}]},
+ {id:"s4a",t:"d",w:"mason",f:"calm",x:"몇 해가 걸린다. 그 사이 아이가 자라고 부모가 늙는다. 그래도 돌은 천 년을 간다.",to:"s4"},
+ {id:"s4b",t:"d",w:"mason",f:"calm",x:"부처의 말씀을 적은 두루마리를 넣는다. 훗날 누군가 열어 보면, 오늘 우리의 마음을 읽겠지.",to:"s4"},
+ {id:"s4c",t:"d",w:"mason",f:"sad",x:"힘들다. 그러나 내 손이 지나간 자리를 천 년 뒤 사람이 본다면, 그만하면 되었다.",to:"s4"},
+
+ {id:"s4",t:"n",x:"나는 알고 있었다. 그 두루마리가 1966년에 다시 세상에 나오게 된다는 것을."},
+ {t:"q",q:"석가탑에서 나온, 현재 남아 있는 가장 오래된 목판 인쇄물의 이름은?",
+  o:["무구정광대다라니경","팔만대장경","직지심체요절","왕오천축국전"],a:0,
+  e:"무구정광대다라니경은 불국사 석가탑에서 나왔습니다. 팔만대장경은 고려, 직지는 고려 말, 왕오천축국전은 혜초의 기행문입니다.",
+  st:{지식:3}},
+ {t:"bg",bg:"bell",era:"8세기 · 봉덕사 주조소",chars:["hero","monk"]},
+ {t:"n",x:"산을 내려오자 붉은 불빛이 보였다. 거대한 종을 부어 만드는 자리였다."},
+ {t:"d",w:"monk",f:"calm",x:"성덕대왕을 기리는 종이오. 구리 수만 근을 들여 스무 해 넘게 만들고 있소."},
+ {t:"d",w:"hero",f:"surp",x:"스무 해요…?"},
+ {t:"d",w:"monk",f:"smile",x:"종은 한 번 울리면 멀리 갑니다. 멀리 가는 것을 만들려면, 그만큼 오래 걸리는 법이지요."},
+ {t:"c",q:"무엇을 하겠는가?",opts:[
+   {x:"불 옆에서 일손을 돕는다",to:"s5a",st:{용기:3,인연:2}},
+   {x:"종에 새겨진 무늬를 자세히 살핀다",to:"s5b",st:{지식:3}},
+   {x:"스님의 이야기를 더 듣는다",to:"s5c",st:{인연:3}}]},
+ {id:"s5a",t:"d",w:"monk",f:"smile",x:"손끝이 야무지군요. 이 종이 울릴 때, 오늘 그대의 땀도 함께 울릴 겁니다.",to:"s5"},
+ {id:"s5b",t:"n",x:"종의 어깨에는 연꽃과 하늘을 나는 사람이 새겨져 있었다. 소리가 나기 전부터 이미 아름다웠다.",to:"s5"},
+ {id:"s5c",t:"d",w:"monk",f:"calm",x:"원효 스님은 모든 것이 한 마음에서 나온다 하셨고, 의상 스님은 하나 속에 모두가 있다 하셨지요.",to:"s5"},
+ {id:"s5",t:"n",x:"불빛이 눈을 찔렀다. 그리고 또 한 번, 세상이 지워졌다."},
+ {t:"flash"},
+
+ {t:"bg",bg:"ruins",era:"935년 · 신라의 마지막 해",chars:["hero","girl"]},
+ {t:"n",x:"이번에는 빛이 없었다. 무너진 담장과 잡초, 그리고 텅 빈 거리."},
+ {t:"d",w:"hero",f:"sad",x:"여기가… 서라벌이라고?"},
+ {t:"d",w:"girl",f:"sad",x:"맞아. 예전엔 밤에도 등불이 끝없이 이어졌대. 우리 할머니가 그랬어."},
+ {t:"n",x:"열 살쯤 되어 보이는 아이가 돌 위에 앉아 있었다. 이름은 보라라고 했다."},
+ {t:"d",w:"girl",f:"calm",x:"귀족들이 백 년 넘게 싸웠어. 세금은 점점 무거워지고, 사람들은 떠났어."},
+ {t:"d",w:"girl",f:"calm",x:"올해 경순왕께서 나라를 고려에 넘기기로 하셨대. 싸우지 않고."},
+ {t:"c",q:"보라에게 무엇을 말할까?",opts:[
+   {x:"싸우지 않은 건 비겁한 게 아닐까?",to:"s6a",st:{용기:2}},
+   {x:"더 이상 백성이 다치지 않게 하려던 거겠지",to:"s6b",st:{인연:3}},
+   {x:"신라가 만든 것들은 사라지지 않아",to:"s6c",st:{지식:2,인연:2}}]},
+ {id:"s6a",t:"d",w:"girl",f:"sad",x:"…그런 말도 들었어. 그런데 싸우면 여기 남은 사람들은 어떻게 돼?",to:"s6"},
+ {id:"s6b",t:"d",w:"girl",f:"calm",x:"응. 나도 그렇게 생각하기로 했어. 그래야 견딜 수 있으니까.",to:"s6"},
+ {id:"s6c",t:"d",w:"girl",f:"smile",x:"…정말? 저 탑이랑 저 종도? 그럼 나도 언젠가 볼 수 있을까?",to:"s6"},
+ {id:"s6",t:"q",q:"935년, 신라의 마지막 왕이 나라를 넘긴 상대는 누구인가?",
+  o:["고려 왕건","후백제 견훤","태봉 궁예","당나라 황제"],a:0,
+  e:"경순왕은 고려 왕건에게 평화롭게 항복했습니다. 신라 천년은 큰 전쟁 없이 막을 내렸고, 그 문화는 고려로 이어졌습니다.",
+  st:{지식:3}},
+ {t:"d",w:"girl",f:"calm",x:"너, 먼 데서 왔다고 했지. 그럼 부탁 하나만 할게."},
+ {t:"d",w:"girl",f:"smile",x:"네가 사는 곳에서, 여기 이야기를 한 번만 해 줘. 그러면 우리는 아주 없어진 건 아니잖아."},
+ {t:"n",x:"나는 고개를 끄덕였다. 그것이 내가 할 수 있는 전부였고, 어쩌면 가장 큰 것이었다."},
+ {t:"flash"},
+ {t:"bg",bg:"modern",era:"2026년 · 다시 첨성대 앞",chars:["hero"]},
+ {t:"n",x:"선생님의 목소리가 들렸다. 반 아이들은 여전히 첨성대 앞에 서 있었고, 시간은 1분도 지나지 않은 듯했다."},
+ {t:"d",w:"hero",f:"calm",x:"…스물일곱 단."},
+ {t:"n",x:"손바닥에는 작은 돌 하나가 쥐어져 있었다. 어디에서 온 것인지, 나는 알고 있었다."},
+ {t:"end"}
+];
+
+
+/* ===================================================================
+   시대별 BGM — Web Audio로 직접 합성 (외부 음원 파일 없음)
+   배경이 바뀔 때마다 조성·템포·음색이 함께 바뀝니다.
+=================================================================== */
+const MOOD={
+ modern :{root:174.61,sc:[0,2,4,7,9],  bpm:74,drum:false,pad:.050,dens:.55,bell:false,cut:900},
+ field6 :{root:155.56,sc:[0,2,5,7,9],  bpm:78,drum:true, pad:.045,dens:.60,bell:false,cut:1100},
+ palace7:{root:130.81,sc:[0,3,5,7,10], bpm:58,drum:false,pad:.070,dens:.40,bell:false,cut:520},
+ temple8:{root:146.83,sc:[0,3,5,7,10], bpm:54,drum:false,pad:.060,dens:.38,bell:true, cut:700},
+ bell   :{root:110.00,sc:[0,3,7,10],   bpm:50,drum:true, pad:.080,dens:.30,bell:true, cut:420},
+ ruins  :{root:123.47,sc:[0,3,5,8,10], bpm:46,drum:false,pad:.055,dens:.26,bell:false,cut:380}
+};
+const AU={ctx:null,master:null,padG:null,lp:null,o1:null,o2:null,noise:null,
+          on:false,timer:null,next:0,step:0,mood:"modern",idx:0};
+function auInit(){
+  if(AU.ctx)return;
+  const AC=window.AudioContext||window.webkitAudioContext; if(!AC)return;
+  AU.ctx=new AC();
+  AU.master=AU.ctx.createGain(); AU.master.gain.value=0; AU.master.connect(AU.ctx.destination);
+  AU.padG=AU.ctx.createGain(); AU.padG.gain.value=.05; AU.padG.connect(AU.master);
+  AU.lp=AU.ctx.createBiquadFilter(); AU.lp.type="lowpass"; AU.lp.frequency.value=700; AU.lp.connect(AU.padG);
+  AU.o1=AU.ctx.createOscillator(); AU.o1.type="sawtooth"; AU.o1.detune.value=-7;
+  AU.o2=AU.ctx.createOscillator(); AU.o2.type="sawtooth"; AU.o2.detune.value= 7;
+  AU.o1.frequency.value=87; AU.o2.frequency.value=130;
+  AU.o1.connect(AU.lp); AU.o2.connect(AU.lp); AU.o1.start(); AU.o2.start();
+  const lfo=AU.ctx.createOscillator(), lg=AU.ctx.createGain();
+  lfo.frequency.value=.06; lg.gain.value=120; lfo.connect(lg); lg.connect(AU.lp.frequency); lfo.start();
+  const n=AU.ctx.sampleRate*.4, b=AU.ctx.createBuffer(1,n,AU.ctx.sampleRate), d=b.getChannelData(0);
+  for(let i=0;i<n;i++)d[i]=Math.random()*2-1;
+  AU.noise=b;
+  auApplyMood(AU.mood,0);
+}
+function auApplyMood(k,ramp){
+  if(!AU.ctx)return; const m=MOOD[k]||MOOD.modern, t=AU.ctx.currentTime, r=ramp===undefined?1.6:ramp;
+  AU.o1.frequency.linearRampToValueAtTime(m.root/2,t+r);
+  AU.o2.frequency.linearRampToValueAtTime(m.root/2*Math.pow(2,7/12),t+r);
+  AU.padG.gain.linearRampToValueAtTime(m.pad,t+r);
+  AU.lp.frequency.linearRampToValueAtTime(m.cut,t+r);
+}
+function auMood(k){
+  if(!(k in MOOD))k="modern";
+  if(AU.mood===k)return;
+  AU.mood=k; AU.idx=0; auApplyMood(k);
+}
+function auNote(t,f,vol,bell){
+  const c=AU.ctx,g=c.createGain(); g.connect(AU.master);
+  const dur=bell?2.6:1.0;
+  g.gain.setValueAtTime(0,t); g.gain.linearRampToValueAtTime(vol,t+(bell?.02:.008));
+  g.gain.exponentialRampToValueAtTime(.0001,t+dur);
+  const o=c.createOscillator(); o.type=bell?"sine":"triangle";
+  o.frequency.setValueAtTime(f,t); o.frequency.exponentialRampToValueAtTime(f*.994,t+dur*.6);
+  const o2=c.createOscillator(); o2.type="sine"; o2.frequency.setValueAtTime(f*(bell?3:2),t);
+  const g2=c.createGain(); g2.gain.value=bell?.12:.2; o2.connect(g2); g2.connect(g);
+  o.connect(g); o.start(t); o2.start(t); o.stop(t+dur+.1); o2.stop(t+dur+.1);
+}
+function auDrum(t,low){
+  const c=AU.ctx,s=c.createBufferSource(); s.buffer=AU.noise;
+  const f=c.createBiquadFilter(); f.type="bandpass"; f.frequency.value=low?165:1200; f.Q.value=low?2.2:1.4;
+  const g=c.createGain(); g.gain.setValueAtTime(low?.2:.09,t);
+  g.gain.exponentialRampToValueAtTime(.0001,t+(low?.34:.15));
+  s.connect(f); f.connect(g); g.connect(AU.master); s.start(t); s.stop(t+.5);
+}
+function auSchedule(){
+  if(!AU.ctx)return;
+  const m=MOOD[AU.mood]||MOOD.modern, spb=60/m.bpm/2;
+  while(AU.next<AU.ctx.currentTime+.3){
+    const s=AU.step%16;
+    if(s%2===0&&Math.random()<m.dens){
+      AU.idx+=[-2,-1,-1,0,1,1,2][Math.floor(Math.random()*7)];
+      if(AU.idx<0)AU.idx+=m.sc.length; if(AU.idx>m.sc.length*2)AU.idx=0;
+      const oct=Math.floor(AU.idx/m.sc.length), st=m.sc[AU.idx%m.sc.length];
+      auNote(AU.next,m.root*Math.pow(2,st/12+oct),m.bell?.13:.15,m.bell);
+    }
+    if(m.drum){ if(s%8===0)auDrum(AU.next,true); else if(s%8===3||s%8===6)auDrum(AU.next,false); }
+    if(s===0)auNote(AU.next,m.root/2,.08,true);
+    AU.next+=spb; AU.step++;
+  }
+}
+function auOn(){
+  auInit(); if(!AU.ctx)return;
+  if(AU.ctx.state==="suspended")AU.ctx.resume();
+  AU.on=true; AU.next=AU.ctx.currentTime+.1;
+  AU.master.gain.cancelScheduledValues(AU.ctx.currentTime);
+  AU.master.gain.setValueAtTime(AU.master.gain.value,AU.ctx.currentTime);
+  AU.master.gain.linearRampToValueAtTime(.3,AU.ctx.currentTime+1.8);
+  clearInterval(AU.timer); AU.timer=setInterval(auSchedule,70);
+  const b=$("mSnd"); if(b){b.textContent="♪ 소리";b.classList.add("on");}
+}
+function auOff(){
+  if(AU.ctx&&AU.master){
+    AU.master.gain.cancelScheduledValues(AU.ctx.currentTime);
+    AU.master.gain.setValueAtTime(AU.master.gain.value,AU.ctx.currentTime);
+    AU.master.gain.linearRampToValueAtTime(0,AU.ctx.currentTime+.5);
+  }
+  AU.on=false; clearInterval(AU.timer);
+  const b=$("mSnd"); if(b){b.textContent="🔇 소리";b.classList.remove("on");}
+}
+function auBlip(ok){
+  if(!AU.ctx||!AU.on)return;
+  const m=MOOD[AU.mood]||MOOD.modern,t=AU.ctx.currentTime;
+  (ok?[0,2,4]:[2,1,0]).forEach((n,i)=>auNote(t+i*.08,m.root*Math.pow(2,m.sc[n%m.sc.length]/12+1),.13,false));
+}
+
+/* ---------------- 상태 ---------------- */
+const KEY="cheonnyeon_v1";
+let V={name:"",i:0,st:{지식:0,용기:0,인연:0},quiz:{ok:0,total:0},log:[],bg:"modern",chars:["hero"],era:""};
+let auto=false,typing=null,SPEED=26;
+const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(V))}catch(e){}};
+const loadV=()=>{try{const r=localStorage.getItem(KEY);return r?JSON.parse(r):null}catch(e){return null}};
+const idx=id=>STORY.findIndex(n=>n.id===id);
+
+/* ---------------- 렌더 ---------------- */
+function setBG(k,era,chars){
+  V.bg=k;V.era=era||V.era;V.chars=chars||V.chars;
+  auMood(k);
+  $("bg").querySelector(".sky").style.background=BG[k].sky;
+  $("art").innerHTML=BG[k].art;
+  $("era").textContent=V.era;
+  drawChars();
+}
+function drawChars(active){
+  $("chars").innerHTML=(V.chars||[]).map(c=>{
+    const f=(c===active&&curFace)?curFace:"calm";
+    const svg=CHAR[c]?CHAR[c](F[f]||F.calm):"";
+    return svg.replace('class="ch"',`class="ch${active&&c!==active?" dim":""}"`);
+  }).join("");
+}
+let curFace="calm";
+function stats(){
+  $("stats").innerHTML=Object.keys(V.st).map(k=>{
+    const col=k==="지식"?"var(--gold)":k==="용기"?"var(--clay)":"var(--jade)";
+    return `<div class="st">${k}<i><b style="width:${Math.min(100,V.st[k]*6)}%;background:${col}"></b></i></div>`;
+  }).join("");
+}
+function gain(obj){
+  let n=0;
+  for(const k in obj){
+    V.st[k]=(V.st[k]||0)+obj[k];
+    const col=k==="지식"?"var(--gold)":k==="용기"?"var(--clay)":"var(--jade)";
+    const d=document.createElement("div");d.className="gain";d.style.color=col;
+    d.style.top=(120+n*26)+"px";d.textContent=k+" +"+obj[k];
+    document.body.appendChild(d);setTimeout(()=>d.remove(),1300);n++;
+  }
+  stats();
+}
+function type(el,text,cb){
+  if(reduced||SPEED===0){el.innerHTML=text+'<span id="cur">▾</span>';typing=null;cb&&cb();return;}
+  let i=0;el.textContent="";typing={el,text,cb};
+  typing.id=setInterval(()=>{
+    el.textContent=text.slice(0,++i);
+    if(i>=text.length){clearInterval(typing.id);el.innerHTML=text+'<span id="cur">▾</span>';typing=null;cb&&cb();}
+  },SPEED);
+}
+function finish(){if(!typing)return;clearInterval(typing.id);
+  typing.el.innerHTML=typing.text+'<span id="cur">▾</span>';const c=typing.cb;typing=null;c&&c();}
+
+/* ---------------- 진행 ---------------- */
+let autoTimer=null;
+function play(){
+  clearTimeout(autoTimer);
+  const n=STORY[V.i];
+  if(!n)return ending();
+  save();
+  $("choices").innerHTML="";
+  $("box").onclick=null;          // 전환 중 중복 진행 방지
+  if(n.t==="bg"){setBG(n.bg,n.era,n.chars);V.i++;return play();}
+  if(n.t==="flash"){
+    const f=$("flash");f.classList.remove("on");void f.offsetWidth;f.classList.add("on");
+    V.i++;return setTimeout(play,reduced?0:420);
+  }
+  if(n.t==="end")return ending();
+  if(n.t==="n"||n.t==="d")return line(n);
+  if(n.t==="c")return choice(n);
+  if(n.t==="q")return quiz(n);
+  V.i++;play();
+}
+function jump(n){
+  if(n.to){const j=idx(n.to);V.i=(j>=0?j:V.i+1);}else V.i++;
+  play();
+}
+function line(n){
+  const isN=(n.t==="n");
+  curFace=n.f||"calm";
+  drawChars(isN?null:n.w);
+  $("who").textContent=isN?"":(NAMES[n.w]||"");
+  $("txt").className=isN?"narr":"";
+  V.log.push({w:isN?null:n.w,x:n.x});if(V.log.length>200)V.log.shift();
+  type($("txt"),n.x,()=>{
+    if(auto)autoTimer=setTimeout(()=>jump(n),1500+n.x.length*45);
+  });
+  $("box").onclick=()=>{if(typing)finish();else jump(n);};
+}
+function choice(n){
+  $("who").textContent="";
+  $("txt").className="narr";
+  $("txt").textContent=n.q;
+  $("box").onclick=null;
+  $("choices").innerHTML=n.opts.map((o,i)=>
+    `<button class="ch-btn" data-i="${i}">${esc(o.x)}</button>`).join("");
+  $("choices").querySelectorAll(".ch-btn").forEach((b,i)=>{
+    b.style.animationDelay=(i*70)+"ms";
+    b.onclick=()=>{
+      const o=n.opts[i];
+      V.log.push({w:"hero",x:"▸ "+o.x});
+      if(o.st)gain(o.st);
+      $("choices").innerHTML="";
+      const j=idx(o.to);V.i=(j>=0?j:V.i+1);play();
+    };
+  });
+}
+function quiz(n){
+  $("who").textContent="";$("txt").className="narr";
+  $("txt").textContent="[확인 문제] "+n.q;
+  $("box").onclick=null;
+  V.quiz.total++;
+  let wrong=0;
+  $("choices").innerHTML=n.o.map((o,i)=>
+    `<button class="ch-btn" data-i="${i}">${esc(o)}</button>`).join("");
+  $("choices").querySelectorAll(".ch-btn").forEach((b,i)=>{
+    b.style.animationDelay=(i*70)+"ms";
+    b.onclick=()=>{
+      if(i===n.a){
+        b.classList.add("ok");auBlip(true);
+        $("choices").querySelectorAll(".ch-btn").forEach(x=>x.disabled=true);
+        if(wrong===0){V.quiz.ok++;if(n.st)gain(n.st);}
+        setTimeout(()=>{
+          $("choices").innerHTML="";
+          $("txt").className="narr";
+          type($("txt"),n.e,()=>{if(auto)autoTimer=setTimeout(()=>{V.i++;play();},2200);});
+          $("box").onclick=()=>{if(typing)finish();else{V.i++;play();}};
+        },520);
+      }else{
+        b.classList.add("no");b.disabled=true;wrong++;auBlip(false);
+        if(wrong>=n.o.length-1)
+          $("choices").querySelector(`.ch-btn[data-i="${n.a}"]`).classList.add("ok");
+      }
+    };
+  });
+}
+
+/* ---------------- 결말 ---------------- */
+function ending(){
+  const s=V.st, top=Object.keys(s).sort((a,b)=>s[b]-s[a])[0];
+  const total=s.지식+s.용기+s.인연;
+  const balanced=(Math.max(s.지식,s.용기,s.인연)-Math.min(s.지식,s.용기,s.인연))<=8;
+  let title,body;
+  if(balanced&&total>=26){
+    title="엔딩 · 천년을 잇는 사람";
+    body="아는 것과 느끼는 것, 나서는 것이 고루 갖춰졌다. 너는 신라를 외우지 않고 만났다. 한 달 뒤 경주에 갈 때, 너는 안내판보다 먼저 이야기를 떠올릴 것이다.";
+  }else if(top==="지식"){
+    title="엔딩 · 기록하는 사람";
+    body="너는 묻고 또 물었다. 시대마다 남은 것은 결국 기록이었고, 그 기록을 읽는 사람이 있어야 과거는 살아남는다. 너는 그 읽는 사람이 되었다.";
+  }else if(top==="용기"){
+    title="엔딩 · 앞에 서는 사람";
+    body="너는 물러서지 않았다. 빛 속으로 먼저 걸어 들어갔고, 불 옆에서 일손을 보탰다. 화랑 풍월이 너를 보았다면 벗이라 불렀을 것이다.";
+  }else{
+    title="엔딩 · 이름을 기억하는 사람";
+    body="너는 왕과 여왕보다 석공 아사와 보라의 이름을 오래 기억했다. 문화유산 뒤에는 언제나 그것을 만들고 지킨 사람이 있다. 너는 그것을 알아본 사람이다.";
+  }
+  const qp=V.quiz.total?Math.round(V.quiz.ok/V.quiz.total*100):0;
+  $("choices").innerHTML="";$("chars").innerHTML="";$("box").onclick=null;
+  $("txt").className="narr";$("who").textContent="";$("txt").textContent="";
+  ovl(`<div class="tag">여행 종료</div>
+    <h2 class="serif" style="font-size:22px">${title}</h2>
+    <p class="dim" style="margin:10px 0 0;font-size:15px;line-height:1.75;text-align:left">${body}</p>
+    <div class="hr"></div>
+    <div style="text-align:left">
+      <div class="kv"><span>여행자</span><b>${esc(V.name||"이름 없음")}</b></div>
+      <div class="kv"><span>지식 · 용기 · 인연</span><b>${s.지식} · ${s.용기} · ${s.인연}</b></div>
+      <div class="kv" style="border:none"><span>확인 문제</span><b>${V.quiz.ok} / ${V.quiz.total} (${qp}%)</b></div>
+    </div>
+    <div class="note">오늘 만난 것 — 화랑도와 세속오계, 첨성대와 황룡사 9층 목탑, 삼국 통일의 마지막 상대,
+      불국사 다보탑과 석가탑, 무구정광대다라니경, 성덕대왕신종, 그리고 935년의 끝.</div>
+    <p class="small">이 화면을 캡처해 선생님께 제출하세요.</p>
+    <button class="btn pri" id="again">다른 선택으로 다시</button>
+    <button class="btn" id="log2">지나온 이야기 보기</button>`);
+  $("again").onclick=()=>{try{localStorage.removeItem(KEY)}catch(e){}closeOv();title0();};
+  $("log2").onclick=()=>{closeOv();logView(true);};
+}
+
+/* ---------------- 오버레이 ---------------- */
+function ovl(html){$("ui").innerHTML=`<div class="ov"><div class="card">${html}</div></div>`;}
+function closeOv(){$("ui").innerHTML="";}
+function logView(fromEnd){
+  const rows=V.log.slice(-80).map(l=>
+    `<div class="logline">${l.w?`<b>${NAMES[l.w]||""}</b> · `:""}${esc(l.x)}</div>`).join("");
+  ovl(`<h3 class="serif" style="font-size:19px;margin-bottom:10px">지나온 이야기</h3>
+    <div style="max-height:56vh;overflow:auto">${rows||'<p class="dim">아직 기록이 없다.</p>'}</div>
+    <button class="btn pri" id="c" style="margin-top:12px">닫기</button>`);
+  $("c").onclick=()=>{closeOv();if(fromEnd)ending();};
+}
+function menu(){
+  ovl(`<h3 class="serif" style="font-size:19px;margin-bottom:12px">메뉴</h3>
+    <p class="small" style="text-align:left;margin-bottom:6px">글자 속도</p>
+    <div style="display:flex;gap:7px;margin-bottom:14px">
+      ${[["느리게",44],["보통",26],["빠르게",12],["즉시",0]].map(([n,v])=>
+        `<button class="btn" data-s="${v}" style="margin:0;padding:9px;font-size:13px;
+          ${SPEED===v?"border-color:var(--gold);color:var(--gold)":""}">${n}</button>`).join("")}
+    </div>
+    <button class="btn" id="restart">처음부터 다시 시작</button>
+    <button class="btn pri" id="close">계속하기</button>`);
+  $("ui").querySelectorAll("[data-s]").forEach(b=>b.onclick=()=>{SPEED=+b.dataset.s;menu();});
+  $("close").onclick=closeOv;
+  $("restart").onclick=()=>{if(confirm("처음부터 다시 시작할까요? 지금까지의 선택이 지워집니다."))
+    {try{localStorage.removeItem(KEY)}catch(e){}closeOv();title0();}};
+}
+
+/* ---------------- 시작 ---------------- */
+function title0(){
+  const prev=loadV();
+  setBG("modern","2026년 · 경주",["hero"]);
+  V.st={지식:0,용기:0,인연:0};stats();
+  $("chars").innerHTML="";$("choices").innerHTML="";
+  $("who").textContent="";$("txt").textContent="";
+  ovl(`<div class="tag">한국사 시간여행</div>
+    <h1 class="serif" style="font-size:30px;line-height:1.28">천년의 문</h1>
+    <p class="dim" style="margin:10px 0 0">수학여행에서 만난 첨성대의 돌 한 단.<br>
+      손을 대는 순간, 신라 천년이 열린다.</p>
+    <p class="small" style="margin:10px 0 0">6세기 화랑 → 7세기 선덕여왕 → 8세기 불국사 → 935년의 끝</p>
+    <div class="hr"></div>
+    <input type="text" id="nm" maxlength="14" placeholder="이름 (예: 3-2 김OO)">
+    <button class="btn pri" id="go">♪ 소리 켜고 문을 연다</button>
+    <button class="btn" id="goMute">소리 끄고 문을 연다</button>
+    ${prev&&prev.name?`<button class="btn" id="cont">이어서 · ${esc(prev.name)}</button>`:""}
+    <p class="small" style="margin:6px 0 0">선택에 따라 결말이 달라집니다. 정답은 없습니다.<br>시대가 바뀌면 배경음악도 함께 바뀝니다.</p>`);
+  const start=(snd)=>{
+    const v=$("nm").value.trim()||"여행자";
+    V={name:v,i:0,st:{지식:0,용기:0,인연:0},quiz:{ok:0,total:0},log:[],bg:"modern",chars:["hero"],era:""};
+    closeOv();stats();
+    if(snd)auOn(); else auOff();
+    play();
+  };
+  $("go").onclick=()=>start(true);
+  $("goMute").onclick=()=>start(false);
+  $("nm").addEventListener("keydown",e=>{if(e.key==="Enter")start(true);});
+  const c=$("cont");
+  if(c)c.onclick=()=>{V=prev;closeOv();stats();auOn();setBG(V.bg,V.era,V.chars);play();};
+}
+
+$("mSnd").onclick=()=>AU.on?auOff():auOn();
+$("mAuto").onclick=()=>{auto=!auto;$("mAuto").classList.toggle("on",auto);
+  if(!auto)clearTimeout(autoTimer);else play();};
+$("mLog").onclick=()=>logView();
+$("mMenu").onclick=menu;
+$("mSave").onclick=()=>{save();$("mSave").textContent="저장됨";
+  setTimeout(()=>$("mSave").textContent="저장",1400);};
+title0();
+</script>
+</body>
+</html>
